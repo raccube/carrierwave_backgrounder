@@ -48,7 +48,9 @@ module CarrierWave
 
           def enqueue_sidekiq(worker, *args)
             override_queue_name = worker.sidekiq_options['queue'] == 'default' || worker.sidekiq_options['queue'].nil?
-            args = sidekiq_queue_options(override_queue_name, 'class' => worker, 'args' => args)
+            # ensure there are no symbols in args, IDs are already strings
+            # using symbols in args raises an error in Sidekiq 7.0
+            args = sidekiq_queue_options(override_queue_name, 'class' => worker, 'args' => args.map(&:to_s))
             worker.client_push(args)
           end
 
@@ -80,7 +82,7 @@ module CarrierWave
 
           def sidekiq_queue_options(override_queue_name, args)
             if override_queue_name && queue_options[:queue]
-              args['queue'] = queue_options[:queue]
+              args['queue'] = queue_options[:queue].to_s
             end
             args['retry'] = queue_options[:retry] unless queue_options[:retry].nil?
             args['timeout'] = queue_options[:timeout] if queue_options[:timeout]
